@@ -103,72 +103,135 @@ def update_subtitle():
 def open_key_recorder():
     """Open a window to record a key to press"""
     global current_key
-    
-    recorder_window = Toplevel(root)
-    recorder_window.title("Set Key to Press")
-    recorder_window.iconbitmap("assets/favicon.ico")
-    recorder_window.geometry("300x300")
-    recorder_window.resizable(False, False)
-    recorder_window.transient(root)
-    recorder_window.grab_set()  # Make it modal
-    
-    instruction_label = tk.Label(
-        recorder_window, 
-        text="Press any key to set...",
-        font=("Arial", 10)
-    )
-    instruction_label.pack(pady=20)
-    
-    key_display = tk.Label(
-        recorder_window,
-        text="",
-        font=("Arial", 12, "bold"),
-        fg="blue"
-    )
-    key_display.pack(pady=10)
-    
-    hook = None
-    
-    def on_key_press(event):
-        global current_key
-        
-        # Check if window still exists
-        if not recorder_window.winfo_exists():
-            return
-        
-        # Get the key name
-        key_name = event.name
-        
-        # Update display
-        try:
-            key_display.config(text=f"Key: {key_name}")
-        except:
-            return
-        
-        # Set new key
-        current_key = key_name
-        key_button.config(text=f"{current_key}")
-        update_subtitle()
-        
-        # Close window after a short delay
-        recorder_window.after(500, lambda: close_recorder(hook))
-    
-    def close_recorder(hook_to_remove):
-        if hook_to_remove:
-            try:
-                keyboard.unhook(hook_to_remove)
-            except:
-                pass
-        try:
-            recorder_window.destroy()
-        except:
-            pass
-    
-    # Hook the key press event
-    hook = keyboard.on_press(on_key_press, suppress=False)
-    
-    recorder_window.protocol("WM_DELETE_WINDOW", lambda: close_recorder(hook))
 
+    recorder = Toplevel(root)
+    recorder.title("Set Key")
+    try:
+        recorder.iconbitmap("assets/favicon.ico")
+    except Exception:
+        pass
+
+    recorder.resizable(False, False)
+    recorder.transient(root)
+    recorder.grab_set()
+
+    # --- size + center over root ---
+    w, h = 200, 200
+    root.update_idletasks()
+    x = root.winfo_rootx() + (root.winfo_width() - w) // 2
+    y = root.winfo_rooty() + (root.winfo_height() - h) // 2
+    recorder.geometry(f"{w}x{h}+{x}+{y}")
+
+    # --- theme ---
+    BG = "#0f172a"
+    CARD = "#111827"
+    TEXT = "#e5e7eb"
+    MUTED = "#94a3b8"
+    ACCENT = "#38bdf8"
+
+    recorder.configure(bg=BG)
+
+    # Card container (gives it a nice padded panel feel)
+    card = tk.Frame(recorder, bg=CARD, bd=0, highlightthickness=1, highlightbackground="#1f2937")
+    card.pack(fill="both", expand=True, padx=12, pady=12)
+
+    # Layout in a simple vertical stack with good spacing
+    title = tk.Label(card, text="Press a key", bg=CARD, fg=TEXT, font=("Segoe UI", 12, "bold"))
+    title.pack(pady=(14, 4))
+
+    hint = tk.Label(card, text="Esc or Cancel to close", bg=CARD, fg=MUTED, font=("Segoe UI", 8))
+    hint.pack(pady=(0, 12))
+
+    # Key display label
+    key_display = tk.Label(card, text="", bg=CARD, fg=ACCENT, font=("Segoe UI", 14, "bold"))
+    key_display.pack(pady=12)
+
+    btn_row = tk.Frame(card, bg=CARD)
+    btn_row.pack(side="bottom", fill="x", pady=(0, 12), padx=12)
+
+    hook = None
+    closed = False
+
+    def close_recorder():
+        nonlocal hook, closed
+        if closed:
+            return
+        closed = True
+
+        if hook is not None:
+            try:
+                keyboard.unhook(hook)
+            except Exception:
+                pass
+            hook = None
+
+        try:
+            recorder.grab_release()
+        except Exception:
+            pass
+        recorder.destroy()
+
+    def on_key_press(event):
+        nonlocal closed
+        if closed:
+            return
+
+        key_name = getattr(event, "name", None)
+        if not key_name:
+            return
+
+        def apply_key():
+            nonlocal closed
+            if closed or not recorder.winfo_exists():
+                return
+
+            # Update the display label
+            try:
+                key_display.config(text=f"Key: {key_name}")
+            except Exception:
+                pass
+
+            global current_key
+            current_key = key_name
+
+            try:
+                key_button.config(text=f"{current_key}")
+            except Exception:
+                pass
+
+            try:
+                update_subtitle()
+            except Exception:
+                pass
+
+            recorder.after(450, close_recorder)
+
+        # schedule UI updates on Tk main thread
+        try:
+            recorder.after(0, apply_key)
+        except Exception:
+            pass
+
+    def cancel():
+        close_recorder()
+
+    cancel_btn = ttk.Button(
+        btn_row, 
+        text="Cancel", 
+        command=cancel,
+        style="Subtle.Small.TButton"
+    )
+    cancel_btn.pack(side="right")
+
+    # Esc to cancel
+    recorder.bind("<Escape>", lambda e: cancel())
+
+    recorder.protocol("WM_DELETE_WINDOW", close_recorder)
+
+    hook = keyboard.on_press(on_key_press, suppress=False)
+
+    # Focus
+    recorder.focus_force()
 
 # gui
 # --- Root window ---
@@ -189,7 +252,7 @@ style = ttk.Style()
 style.theme_use("clam")
 
 style.configure("App.TFrame", background="#0f172a")
-style.configure("Card.TFrame", background="#111827")  # card bg
+style.configure("Card.TFrame", background="#111827") 
 style.configure("Title.TLabel", background="#0f172a", foreground="white", font=("Segoe UI", 16, "bold"))
 style.configure("Sub.TLabel", background="#0f172a", foreground="#cbd5e1", font=("Segoe UI", 9))
 style.configure("Label.TLabel", background="#111827", foreground="#e5e7eb", font=("Segoe UI", 10))
@@ -224,6 +287,18 @@ style.configure("TEntry",
                 padding=(10, 8),
                 fieldbackground="#0b1220",
                 foreground="white")
+style.configure(
+    "Subtle.Small.TButton",
+    font=("Segoe UI", 8),
+    padding=(6, 2),
+    background="#fa6260",
+    foreground="white"
+)
+style.map(
+    "Subtle.Small.TButton",
+    background=[("active", "#ef4444")],
+    foreground=[("active", "white")]
+)
 
 # --- Layout containers ---
 app = ttk.Frame(root, style="App.TFrame", padding=16)
@@ -288,7 +363,6 @@ ttk.Label(card, text=f"Press {START_STOP_KEY} to Start/Stop", style="Hint.TLabel
     row=7, column=0, columnspan=2, sticky="w"
 )
 
-# Register F5 hotkey
 keyboard.add_hotkey(START_STOP_KEY, toggle)
 
 root.mainloop()
