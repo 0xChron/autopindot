@@ -1,7 +1,12 @@
-# Autopindot 
+# 🤖 Autopindot 
 
 - A simple windows automation tool that automatically presses a specified key at regular intervals
 - Perfect for preventing afk timeouts, keeping games active, or automating repetitive tasks.
+
+## User Interface
+<p align="center">
+  <img src="assets/ui.png" alt="UI Preview" width="250"/>
+</p>
 
 ## Features
 - **Customizable key press**: Choose any key
