@@ -6,7 +6,7 @@ from tkinter import messagebox, Toplevel
 import pyautogui
 import keyboard
 
-START_UP_DELAY = 5
+START_UP_DELAY = 3
 START_STOP_KEY = "F5" 
 running = False
 worker_thread = None
